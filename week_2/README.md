@@ -6,7 +6,7 @@ Used `IsEqual` template instead of a constraint comparing with a constant to avo
 
 ## 2. HasAtLeastOne
 
-Idea is check if `(in[0] - k) * (in[0] - k) * (in[0] - k) * (in[0] - k) === 0` but turned that into R1CS.
+Idea is checking if `(in[0] - k) * (in[0] - k) * (in[0] - k) * (in[0] - k) === 0` but turning that into R1CS.
 
 ## 3. IsMedian
 

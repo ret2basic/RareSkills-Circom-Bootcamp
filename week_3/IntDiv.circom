@@ -34,17 +34,6 @@ template IntDiv(n) {
     lessThan.in[0] <== remainder;
     lessThan.in[1] <== denominator;
     lessThan.out === 1;
-
-    // Condition 3: quotient and remainder must be greater than or equal to 0
-    component greaterEqThan1 = GreaterEqThan(n);
-    greaterEqThan1.in[0] <== quotient;
-    greaterEqThan1.in[1] <== 0;
-    greaterEqThan1.out === 1;
-
-    component greaterEqThan2 = GreaterEqThan(n);
-    greaterEqThan2.in[0] <== remainder;
-    greaterEqThan2.in[1] <== 0;
-    greaterEqThan2.out === 1;
 }
 
 component main = IntDiv(252);

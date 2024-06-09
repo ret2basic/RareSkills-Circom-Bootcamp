@@ -16,15 +16,16 @@ template IntDivOut(n) {
     // Condition 1: computation is correct
     quotient <-- numerator \ denominator;
     remainder <-- numerator % denominator;
-    out === quotient;
-
-    out * denominator + remainder === numerator;
+    quotient * denominator + remainder === numerator;
 
     // Condition 2: remainder must be smaller than denominator
     component lessThan = LessThan(n);
     lessThan.in[0] <== remainder;
     lessThan.in[1] <== denominator;
     lessThan.out === 1;
+
+    // Assign output
+    out <== quotient;
 }
 
 component main = IntDivOut(252);

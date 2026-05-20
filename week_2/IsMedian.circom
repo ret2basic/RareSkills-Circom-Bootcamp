@@ -1,5 +1,6 @@
-pragma circom 2.1.3;
-include "../../node_modules/circomlib/circuits/comparators.circom";
+pragma circom 2.1.8;
+
+include "../common.circom";
 
 // Create a circuit that takes private input of 5 variables as an array and a public input k.
 // Your goal is to prove that k is the median of the list without showing the list.
@@ -9,18 +10,13 @@ include "../../node_modules/circomlib/circuits/comparators.circom";
 template IsSorted() {
     signal input in[5];
 
-    component lessThan[4];
-    component isEqual[4];
+    component lessEqThan[4];
 
     for (var i = 0; i < 4; i++) {
-        lessThan[i] = LessThan(252);
-        isEqual[i] = IsEqual();
-
-        lessThan[i].in[0] <== in[i];
-        lessThan[i].in[1] <== in[i+1];
-        isEqual[i].in[0] <== lessThan[i].out;
-        isEqual[i].in[1] <== 1;
-        isEqual[i].out === 1;
+        lessEqThan[i] = LessEqThan(252);
+        lessEqThan[i].in[0] <== in[i];
+        lessEqThan[i].in[1] <== in[i+1];
+        lessEqThan[i].out === 1;
     }
 }
 

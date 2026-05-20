@@ -1,7 +1,6 @@
-pragma circom 2.1.6;
+pragma circom 2.1.8;
 
-include "circomlib/multiplexer.circom";
-include "circomlib/comparators.circom";
+include "../common.circom";
 
 template Stack(maxStackHeight, maxSteps) {
     signal input pushValues[maxSteps];
@@ -9,61 +8,86 @@ template Stack(maxStackHeight, maxSteps) {
     signal input index;
     signal input value;
 
-    var stack[maxStackHeight];
-    // stack pointer
-    // let stack pointer start from -1 to avoid handling i = 0 special case
-    var sp = -1;
-    // program counter
-    var pc = 0;
-
-    // opcodes must be 1, -1 or 0
+    signal stack[maxSteps + 1][maxStackHeight];
+    signal depth[maxSteps + 1];
     signal tempProduct[maxSteps];
+    signal isPush[maxSteps];
+    signal isPop[maxSteps];
+    signal isNop[maxSteps];
+    signal pushFlag[maxSteps][maxStackHeight];
+    signal popFlag[maxSteps][maxStackHeight];
+    signal pushDelta[maxSteps][maxStackHeight];
+    signal popDelta[maxSteps][maxStackHeight];
+
+    component pushBit[maxSteps];
+    component popBit[maxSteps];
+    component nopBit[maxSteps];
+    component hasRoom[maxSteps];
+    component hasItem[maxSteps];
+    component isPushSlot[maxSteps * maxStackHeight];
+    component isPopSlot[maxSteps * maxStackHeight];
+
+    depth[0] <== 0;
+    for (var j = 0; j < maxStackHeight; j++) {
+        stack[0][j] <== 0;
+    }
+
     for (var i = 0; i < maxSteps; i++) {
         tempProduct[i] <== (opcodes[i] - 1) * (opcodes[i] + 1);
         tempProduct[i] * opcodes[i] === 0;
+
+        isPush[i] <== opcodes[i] * (opcodes[i] + 1) / 2;
+        isPop[i] <== opcodes[i] * (opcodes[i] - 1) / 2;
+        isNop[i] <== 1 - opcodes[i] * opcodes[i];
+        isPush[i] + isPop[i] + isNop[i] === 1;
+
+        pushBit[i] = AssertBinary();
+        popBit[i] = AssertBinary();
+        nopBit[i] = AssertBinary();
+        pushBit[i].in <== isPush[i];
+        popBit[i].in <== isPop[i];
+        nopBit[i].in <== isNop[i];
+
+        hasRoom[i] = LessThan(252);
+        hasRoom[i].in[0] <== depth[i];
+        hasRoom[i].in[1] <== maxStackHeight;
+        isPush[i] * (hasRoom[i].out - 1) === 0;
+
+        hasItem[i] = LessThan(252);
+        hasItem[i].in[0] <== 0;
+        hasItem[i].in[1] <== depth[i];
+        isPop[i] * (hasItem[i].out - 1) === 0;
+
+        depth[i + 1] <== depth[i] + isPush[i] - isPop[i];
+
+        for (var j = 0; j < maxStackHeight; j++) {
+            isPushSlot[i * maxStackHeight + j] = IsEqual();
+            isPushSlot[i * maxStackHeight + j].in[0] <== depth[i];
+            isPushSlot[i * maxStackHeight + j].in[1] <== j;
+
+            isPopSlot[i * maxStackHeight + j] = IsEqual();
+            isPopSlot[i * maxStackHeight + j].in[0] <== depth[i];
+            isPopSlot[i * maxStackHeight + j].in[1] <== j + 1;
+
+            pushFlag[i][j] <== isPush[i] * isPushSlot[i * maxStackHeight + j].out;
+            popFlag[i][j] <== isPop[i] * isPopSlot[i * maxStackHeight + j].out;
+            pushDelta[i][j] <== pushFlag[i][j] * (pushValues[i] - stack[i][j]);
+            popDelta[i][j] <== popFlag[i][j] * (0 - stack[i][j]);
+            stack[i + 1][j] <== stack[i][j] + pushDelta[i][j] + popDelta[i][j];
+        }
     }
 
-    var opcode;
-    var pushValue;
+    component indexInDepth = LessThan(252);
+    indexInDepth.in[0] <== index;
+    indexInDepth.in[1] <== depth[maxSteps];
+    indexInDepth.out === 1;
 
-    // parse each opcode
-    for (var i = 0; i < maxSteps; i++) {
-        opcode = opcodes[pc];
-        
-        if (opcode == 1) {
-            // PUSH
-            // stack pointer can't exceed stack size limit
-            if(sp + 1 < maxStackHeight) {
-                pushValue = pushValues[pc];
-                sp += 1;
-                stack[sp] = pushValue;
-                pc += 1;
-            }
-        }
-        else if (opcode == 0) {
-            // NOP
-            // do nothing, only increment program counter
-            pc += 1;
-        }
-        else if (opcode == -1) {
-            // POP
-            // just the reverse of PUSH
-            if (sp > 0) {
-                stack[sp] = 0;
-                sp -= 1;
-                pc += 1;
-            }
-        }
+    component selector = Select(maxStackHeight);
+    for (var j = 0; j < maxStackHeight; j++) {
+        selector.values[j] <== stack[maxSteps][j];
     }
-
-    component multiplexer = Multiplexer(1, maxStackHeight);
-    for(var i = 0; i < maxStackHeight; i++) {
-        multiplexer.inp[i] <-- [stack[i]];
-    }
-    multiplexer.sel <== index;
-
-    // Check if the value is correct
-    value === multiplexer.out[0];
+    selector.index <== index;
+    value === selector.out;
 }
 
 component main = Stack(4, 4);

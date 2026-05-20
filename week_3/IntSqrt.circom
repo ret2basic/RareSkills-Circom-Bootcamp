@@ -1,5 +1,6 @@
 pragma circom 2.1.8;
-include "../node_modules/circomlib/circuits/comparators.circom";
+
+include "../common.circom";
 
 // Create a circuit that is satisfied if
 // in[0] is the floor of the integer
@@ -28,8 +29,8 @@ template IntSqrt(n) {
     signal term1;
     signal term2;
     
-    term1 <-- in[0] * in[0];
-    term2 <-- (in[0] + 1) * (in[0] + 1);
+    term1 <== in[0] * in[0];
+    term2 <== (in[0] + 1) * (in[0] + 1);
 
     component lessEqThan = LessEqThan(n);
     lessEqThan.in[0] <== term1;

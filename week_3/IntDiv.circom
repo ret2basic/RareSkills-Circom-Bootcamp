@@ -1,5 +1,6 @@
 pragma circom 2.1.8;
-include "../node_modules/circomlib/circuits/comparators.circom";
+
+include "../common.circom";
 
 // Create a circuit that is satisfied if `numerator`,
 // `denominator`, `quotient`, and `remainder` represent
@@ -16,24 +17,21 @@ template IntDiv(n) {
     signal input quotient;
     signal input remainder;
 
-    signal correct_quotient;
-    signal correct_remainder;
+    component denominatorIsPositive = LessThan(n);
+    denominatorIsPositive.in[0] <== 0;
+    denominatorIsPositive.in[1] <== denominator;
+    denominatorIsPositive.out === 1;
 
-    // Condition 1: computation is correct
-    correct_quotient <-- numerator \ denominator;
-    quotient === correct_quotient;
-
-    correct_remainder <-- numerator % denominator;
-    remainder === correct_remainder;
-
-    // verify again, just to be safe
-    quotient * denominator + remainder === numerator;
-
-    // Condition 2: remainder must be smaller than denominator
     component lessThan = LessThan(n);
     lessThan.in[0] <== remainder;
     lessThan.in[1] <== denominator;
     lessThan.out === 1;
+
+    component productCheck = LongMulAddEq(n);
+    productCheck.a <== quotient;
+    productCheck.b <== denominator;
+    productCheck.c <== remainder;
+    productCheck.d <== numerator;
 }
 
 component main = IntDiv(252);

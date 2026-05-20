@@ -1,5 +1,6 @@
 pragma circom 2.1.8;
-include "../node_modules/circomlib/circuits/comparators.circom";
+
+include "../common.circom";
 
 // Be sure to solve IntSqrt before solving this 
 // puzzle. Your goal is to compute the square root
@@ -11,25 +12,25 @@ include "../node_modules/circomlib/circuits/comparators.circom";
 
 
 function intSqrtFloor(x) {
-    // compute the floor of the
-    // integer square root
+    var remainder = x;
+    var root = 0;
+    var bit = 1;
 
-    // Base case
-    if (x == 0 || x == 1) {
-        return x;
+    for (var i = 0; i < 125; i++) {
+        bit *= 4;
     }
 
-    // Do it the stupid way
-    // Starting from 1, try all numbers until
-    // i*i is greater than or equal to x.
-    var i = 1;
-    var result = 1;
-    while (result <= x) {
-        i += 1;
-        result = i * i;
+    for (var i = 0; i < 126; i++) {
+        if (remainder >= root + bit) {
+            remainder -= root + bit;
+            root = (root \ 2) + bit;
+        } else {
+            root = root \ 2;
+        }
+        bit = bit \ 4;
     }
 
-    return i - 1;
+    return root;
 }
 
 template IntSqrtOut(n) {
@@ -44,8 +45,8 @@ template IntSqrtOut(n) {
     signal term1;
     signal term2;
     
-    term1 <-- out * out;
-    term2 <-- (out + 1) * (out + 1);
+    term1 <== out * out;
+    term2 <== (out + 1) * (out + 1);
 
     component lessEqThan = LessEqThan(n);
     lessEqThan.in[0] <== term1;

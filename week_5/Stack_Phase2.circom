@@ -1,60 +1,60 @@
-pragma circom 2.1.6;
+pragma circom 2.1.8;
 
-include "circomlib/multiplexer.circom";
-include "circomlib/comparators.circom";
+include "../common.circom";
 
 template Stack(maxStackHeight, maxSteps) {
     signal input pushValues[maxSteps];
-    signal input opcodes[maxSteps]; // push = 1, pop = -1, nop = 0
+    signal input opcodes[maxSteps];
     signal input index;
     signal input value;
 
-    var stack[maxStackHeight];
-    // stack pointer
-    // let stack pointer start from -1 to avoid handling i = 0 special case
-    var sp = -1;
-    // program counter
-    var pc = 0;
+    signal stack[maxSteps + 1][maxStackHeight];
+    signal depth[maxSteps + 1];
+    signal writeFlag[maxSteps][maxStackHeight];
+    signal writeDelta[maxSteps][maxStackHeight];
 
-    // opcodes must be 1, -1 or 0
-    signal tempProduct[maxSteps];
-    for (var i = 0; i < maxSteps; i++) {
-        tempProduct[i] <== (opcodes[i] - 1) * (opcodes[i] + 1);
-        tempProduct[i] * opcodes[i] === 0;
+    component opcodeBit[maxSteps];
+    component hasRoom[maxSteps];
+    component isWriteSlot[maxSteps * maxStackHeight];
+
+    depth[0] <== 0;
+    for (var j = 0; j < maxStackHeight; j++) {
+        stack[0][j] <== 0;
     }
 
-    var opcode;
-    var pushValue;
-
-    // parse each opcode
     for (var i = 0; i < maxSteps; i++) {
-        opcode = opcodes[pc];
-        
-        if (opcode == 1) {
-            // PUSH
-            // stack pointer can't exceed stack size limit
-            if(sp + 1 < maxStackHeight) {
-                pushValue = pushValues[pc];
-                sp += 1;
-                stack[sp] = pushValue;
-                pc += 1;
-            }
-        }
-        else if (opcode == 0) {
-            // NOP
-            // do nothing, only increment program counter
-            pc += 1;
+        opcodeBit[i] = AssertBinary();
+        opcodeBit[i].in <== opcodes[i];
+
+        hasRoom[i] = LessThan(252);
+        hasRoom[i].in[0] <== depth[i];
+        hasRoom[i].in[1] <== maxStackHeight;
+        opcodes[i] * (hasRoom[i].out - 1) === 0;
+
+        depth[i + 1] <== depth[i] + opcodes[i];
+
+        for (var j = 0; j < maxStackHeight; j++) {
+            isWriteSlot[i * maxStackHeight + j] = IsEqual();
+            isWriteSlot[i * maxStackHeight + j].in[0] <== depth[i];
+            isWriteSlot[i * maxStackHeight + j].in[1] <== j;
+
+            writeFlag[i][j] <== opcodes[i] * isWriteSlot[i * maxStackHeight + j].out;
+            writeDelta[i][j] <== writeFlag[i][j] * (pushValues[i] - stack[i][j]);
+            stack[i + 1][j] <== stack[i][j] + writeDelta[i][j];
         }
     }
 
-    component multiplexer = Multiplexer(1, maxStackHeight);
-    for(var i = 0; i < maxStackHeight; i++) {
-        multiplexer.inp[i] <-- [stack[i]];
-    }
-    multiplexer.sel <== index;
+    component indexInDepth = LessThan(252);
+    indexInDepth.in[0] <== index;
+    indexInDepth.in[1] <== depth[maxSteps];
+    indexInDepth.out === 1;
 
-    // Check if the value is correct
-    value === multiplexer.out[0];
+    component selector = Select(maxStackHeight);
+    for (var j = 0; j < maxStackHeight; j++) {
+        selector.values[j] <== stack[maxSteps][j];
+    }
+    selector.index <== index;
+    value === selector.out;
 }
 
 component main = Stack(4, 4);

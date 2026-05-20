@@ -1,5 +1,6 @@
 pragma circom 2.1.8;
-include "../node_modules/circomlib/circuits/comparators.circom";
+
+include "../common.circom";
 
 // Use the same constraints from IntDiv, but this
 // time assign the quotient in `out`. You still need
@@ -10,22 +11,26 @@ template IntDivOut(n) {
     signal input denominator;
     signal output out;
 
-    signal quotient;
     signal remainder;
 
-    // Condition 1: computation is correct
-    quotient <-- numerator \ denominator;
+    out <-- numerator \ denominator;
     remainder <-- numerator % denominator;
-    quotient * denominator + remainder === numerator;
 
-    // Condition 2: remainder must be smaller than denominator
+    component denominatorIsPositive = LessThan(n);
+    denominatorIsPositive.in[0] <== 0;
+    denominatorIsPositive.in[1] <== denominator;
+    denominatorIsPositive.out === 1;
+
     component lessThan = LessThan(n);
     lessThan.in[0] <== remainder;
     lessThan.in[1] <== denominator;
     lessThan.out === 1;
 
-    // Assign output
-    out <== quotient;
+    component productCheck = LongMulAddEq(n);
+    productCheck.a <== out;
+    productCheck.b <== denominator;
+    productCheck.c <== remainder;
+    productCheck.d <== numerator;
 }
 
 component main = IntDivOut(252);
